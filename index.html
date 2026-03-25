@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>Stock Management System</title>
+  <style>
+    /* เพิ่ม Google Font (Sarabun) */
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+    body { font-family: 'Sarabun', sans-serif; }
+    
+    .tab-button { padding: 10px 20px; cursor: pointer; border-bottom: 4px solid transparent; transition: all 0.2s; font-weight: 500; }
+    .tab-button.active { border-color: #1D4ED8; color: #1D4ED8; font-weight: 700; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .form-input {
+      width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #D1D5DB; border-radius: 8px; transition: all 0.2s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .form-input:focus {
+      border-color: #2563EB;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      outline: none;
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; font-weight: bold; padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; 
+      transition: all 0.2s ease-in-out;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .btn:active {
+      transform: translateY(0px) scale(0.98);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .btn-primary { background-color: #2563EB; color: white; }
+    .btn-secondary { background-color: #D97706; color: white; }
+    .btn-edit { background-color: #F97316; color: white; }
+    .btn-success { background-color: #10B981; color: white; }
+    .btn-danger { background-color: #EF4444; color: white; }
+    .btn-warning { background-color: #F59E0B; color: white; }
+    
+    .modal-overlay {
+        display: none; position: fixed; inset: 0; background-color: rgba(0,0,0,0.5);
+        justify-content: center; align-items: center; z-index: 50;
+    }
+    .modal-box { background-color: white; padding: 2rem; border-radius: 0.5rem; width: 90%; max-width: 450px; }
+    
+    .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    .loader-white { border: 4px solid rgba(255,255,255,0.2); border-top: 4px solid #FFF; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+
+    /* *** (ใหม่) ลูกเล่น CSS สำหรับรายการ *** */
+    .list-item {
+      background-color: white;
+      border: 1px solid #E5E7EB;
+      padding: 12px;
+      border-radius: 8px;
+      transition: all 0.2s ease-in-out;
+      cursor: default;
+    }
+    .list-item:hover {
+      transform: translateX(5px);
+      background-color: #f9fafb;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    .list-item-history {
+      background-color: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      padding: 12px;
+      border-radius: 8px;
+      transition: all 0.2s ease-in-out;
+    }
+    .list-item-history:hover {
+      transform: translateX(3px);
+      background-color: #F3F4F6;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <div class="container mx-auto p-4 max-w-7xl">
+    <div class="flex items-center gap-4 mb-4">
+      <img src="thai-cargo-logo.png" alt="Thai Cargo Logo" class="h-16 w-auto drop-shadow-md">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-800">ระบบจัดการสต็อก DX-A3</h1>
+        <p class="text-sm text-gray-500">Thai Cargo • Stock Management System</p>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="bg-white rounded-t-lg shadow">
+      <nav class="flex border-b flex-wrap">
+        <button onclick="openTab(event, 'inventory')" class="tab-button active"><i class="fas fa-boxes mr-2"></i>จัดการสต็อก</button>
+        <button onclick="openTab(event, 'transactions')" class="tab-button"><i class="fas fa-exchange-alt mr-2"></i>รับเข้า / เบิกจ่าย</button>
+        <button onclick="openTab(event, 'dashboard')" class="tab-button"><i class="fas fa-chart-line mr-2"></i>แดชบอร์ด</button>
+        <button onclick="openTab(event, 'reports')" class="tab-button"><i class="fas fa-file-alt mr-2"></i>รายงาน</button>
+        <a href="https://docs.google.com/spreadsheets/d/1eMjz-7bgQ1pY63RdodndDeU0MC8yU31lgjWbMVD08Pk/edit?usp=sharing" class="tab-button" target="_blank" rel="noopener noreferrer">
+            <i class="fas fa-link mr-2"></i>ไปยัง Google Sheet
+        </a>
+      </nav>
+    </div>
+
+    <!-- INVENTORY MANAGEMENT TAB (NOW FIRST AND ACTIVE) -->
+    <div id="inventory" class="tab-content active bg-white rounded-b-lg shadow p-6">
+        <!-- EDIT FORM (Initially Hidden) -->
+        <div id="inventoryEditSection" class="hidden mb-6 p-4 border rounded-lg bg-blue-50">
+            <h3 class="text-lg font-bold mb-4" id="editFormTitle">แก้ไขสต็อก</h3>
+            <div class="grid md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm font-medium">DESCRIPTION</label>
+                    <input type="text" id="editDescription" class="form-input bg-gray-200" readonly>
+                </div>
+                <div>
+                    <label class="text-sm font-medium">MATERIAL NO</label>
+                    <input type="text" id="editMaterialNo" class="form-input bg-gray-200" readonly>
+                </div>
+            </div>
+            <!-- (ปรับปรุง) เพิ่มช่องแก้ไข Max Stock -->
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+              <div>
+                  <label for="editNewQuantity" class="text-sm font-medium">จำนวนสต็อกใหม่</label>
+                  <input type="number" id="editNewQuantity" class="form-input" min="0">
+              </div>
+              <div>
+                  <label for="editMaxStock" class="text-sm font-medium">สต็อกสูงสุด (Max Stock)</label>
+                  <input type="number" id="editMaxStock" class="form-input" min="0">
+              </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-4">
+                <button onclick="hideEditForm()" class="btn bg-gray-500 text-white">ยกเลิก</button>
+                <button onclick="submitInventoryUpdate()" class="btn btn-primary">บันทึกข้อมูล</button>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold">ค้นหาและจัดการรายการสต็อก</h2>
+            <button onclick="openAddModal()" class="btn btn-success"><i class="fas fa-plus mr-2"></i>เพิ่มสินค้าใหม่</button>
+        </div>
+        <p class="text-sm text-gray-600 mb-4">ใช้หน้านี้สำหรับตั้งค่าสต็อกเริ่มต้น, ปรับแก้จำนวนสต็อก, หรือแก้ไขราคาสินค้า</p>
+        <input type="text" id="inventorySearch" class="form-input mb-4" placeholder="ค้นหาด้วย NO, รหัสสินค้า, หรือ ชื่อสินค้า...">
+        <!-- (ปรับปรุง) เพิ่ม overflow-y-auto -->
+        <div id="inventoryContainer" class="space-y-3 h-[500px] overflow-y-auto pr-2"></div>
+    </div>
+
+    <!-- TRANSACTIONS TAB -->
+    <div id="transactions" class="tab-content bg-white rounded-b-lg shadow p-6">
+      <div class="grid lg:grid-cols-5 gap-6">
+        <div class="lg:col-span-2">
+            <h2 class="text-xl font-bold mb-4">ทำรายการรับเข้า-เบิกจ่าย</h2>
+            <form id="stockForm">
+              <div>
+                <label for="description" class="text-sm font-medium">สินค้า (เลือกจากรายการ)</label>
+                <input type="text" id="description" class="form-input" list="productList" required onchange="onProductSelect(this.value)">
+                <datalist id="productList"></datalist>
+              </div>
+              <!-- (ใหม่) เพิ่มช่อง ราคาต่อหน่วย -->
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label for="quantity" class="text-sm font-medium">จำนวน</label>
+                  <input type="number" id="quantity" class="form-input" required min="1">
+                </div>
+                <div>
+                  <label for="unitPrice" class="text-sm font-medium">ราคาต่อหน่วย (฿)</label>
+                  <input type="number" id="unitPrice" class="form-input" required min="0" step="0.01">
+                </div>
+              </div>
+              <div>
+                <label for="department" class="text-sm font-medium">หน่วยงานผู้เบิก / หมายเหตุ</label>
+                <input type="text" id="department" class="form-input" placeholder="เช่น แผนก A, รับจาก Supplier X">
+              </div>
+              <div>
+                <label for="transactionDate" class="text-sm font-medium">วันที่ทำรายการ (ปล่อยว่าง=วันนี้)</label>
+                <input type="date" id="transactionDate" class="form-input">
+              </div>
+              <div class="flex items-end space-x-2 mt-4">
+                <button type="button" id="receiveBtn" class="btn btn-primary w-full"><i class="fas fa-plus mr-2"></i>รับเข้า</button>
+                <button type="button" id="withdrawBtn" class="btn btn-danger w-full"><i class="fas fa-minus mr-2"></i>เบิกจ่าย</button>
+              </div>
+              <div id="form-status" class="mt-4 text-sm h-5"></div>
+            </form>
+        </div>
+        <div class="lg:col-span-3">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">ประวัติรายการ (20 รายการล่าสุด)</h2>
+                <button onclick="loadHistory()" class="text-blue-600 font-semibold text-sm"><i class="fas fa-sync-alt mr-1"></i>รีเฟรช</button>
+            </div>
+            <input type="text" id="historySearch" class="form-input mb-4" placeholder="ค้นหาประวัติ...">
+            <!-- (ปรับปรุง) เพิ่ม h-[500px] -->
+            <div id="historyContainer" class="space-y-2 h-[500px] overflow-y-auto pr-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="dashboard" class="tab-content bg-white rounded-b-lg shadow p-6">
+       <div class="flex justify-between items-center mb-4">
+         <h2 class="text-xl font-bold">ภาพรวมสต็อก</h2>
+         <button onclick="loadDashboardData()" class="text-blue-600 font-semibold"><i class="fas fa-sync-alt mr-2"></i>รีเฟรชข้อมูล</button>
+       </div>
+      
+      <!-- (ใหม่) การ์ดมูลค่ารวม -->
+      <div class="bg-gradient-to-r from-blue-500 to-blue-700 text-white p-6 rounded-lg shadow-lg mb-8">
+        <h3 class="text-lg font-medium">มูลค่าสต็อกคงคลังรวม (TOTAL VALUE)</h3>
+        <div id="totalValueCard" class="text-4xl font-bold mt-2">
+          <div class="loader-white mx-auto"></div>
+        </div>
+      </div>
+      
+      <div class="grid md:grid-cols-2 gap-8">
+        <!-- (ใหม่) ตารางสินค้าที่ควรเติม -->
+        <div class="md:col-span-2 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+          <h3 class="font-bold mb-2 text-yellow-800"><i class="fas fa-exclamation-triangle mr-2"></i>10 อันดับสินค้าที่ควรเติม (สต็อก < 20% ของ Max)</h3>
+          <div id="restockTable" class="h-64 overflow-y-auto"></div>
+        </div>
+
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h3 class="font-bold mb-2 text-center">ยอดเบิกจ่าย 7 วันล่าสุด (ตามจำนวน)</h3>
+          <canvas id="dailyWithdrawalsChart"></canvas>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h3 class="font-bold mb-2 text-center">5 อันดับสินค้าที่ถูกเบิกเยอะที่สุด (ตามจำนวน)</h3>
+          <canvas id="topItemsChart"></canvas>
+        </div>
+        <div class="md:col-span-2 bg-gray-50 p-4 rounded-lg">
+          <h3 class="font-bold mb-2 text-center">15 อันดับสินค้าคงคลังสูงสุด (ตามจำนวน)</h3>
+          <canvas id="inventoryLevelsChart"></canvas>
+        </div>
+        <div class="md:col-span-2 bg-gray-50 p-4 rounded-lg">
+          <h3 class="font-bold mb-2">10 อันดับสินค้าคงคลังนาน (ไม่เคลื่อนไหว > 30 วัน และมีสต็อก)</h3>
+          <div id="slowMovingTable" class="h-64 overflow-y-auto"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS TAB -->
+    <div id="reports" class="tab-content bg-white rounded-b-lg shadow p-6">
+        <h2 class="text-xl font-bold mb-4">ส่งออกรายงาน</h2>
+        <div class="grid md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 p-6 rounded-lg text-center">
+                <i class="fas fa-boxes text-3xl text-blue-600 mb-2"></i>
+                <h3 class="font-bold">รายงานสต็อกคงคลัง</h3>
+                <p class="text-sm text-gray-500 mb-4">ดาวน์โหลดรายการสินค้าทั้งหมดพร้อมยอดคงเหลือ, ราคา, และมูลค่าล่าสุด</p>
+                <button onclick="requestReport('excel', 'inventory')" class="btn bg-green-600 text-white"><i class="fas fa-file-excel mr-2"></i>Export to Excel</button>
+            </div>
+            
+            <div class="bg-gray-50 p-6 rounded-lg">
+                <h3 class="font-bold mb-2 text-center"><i class="fas fa-file-invoice-dollar mr-2"></i>รายงานความเคลื่อนไหว / ค่าใช้จ่าย</h3>
+                <p class="text-sm text-gray-500 mb-4 text-center">เลือกเงื่อนไขเพื่อดาวน์โหลดประวัติ</p>
+                
+                <!-- (ใหม่) กรองตามสินค้า -->
+                <div class="mt-2">
+                    <label for="productFilter" class="text-xs font-medium">กรองตามสินค้า (พิมพ์ชื่อ, ปล่อยว่าง=ทั้งหมด)</label>
+                    <input type="text" id="productFilter" class="form-input p-2 text-sm" placeholder="เช่น ดินสอ, กระดาษ...">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                        <label for="startDate" class="text-xs font-medium">วันที่เริ่มต้น</label>
+                        <input type="date" id="startDate" class="form-input p-2 text-sm">
+                    </div>
+                    <div>
+                        <label for="endDate" class="text-xs font-medium">วันที่สิ้นสุด</label>
+                        <input type="date" id="endDate" class="form-input p-2 text-sm">
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <label for="filterType" class="text-xs font-medium">ประเภทรายการ (สำหรับรายงานความเคลื่อนไหว)</label>
+                    <select id="filterType" class="form-input p-2 text-sm">
+                        <option value="ALL">ทั้งหมด</option>
+                        <option value="RECEIVE">เฉพาะรับเข้า</option>
+                        <option value="WITHDRAW">เฉพาะเบิกจ่าย</option>
+                        <option value="ADJUST">เฉพาะการปรับสต็อก</option>
+                    </select>
+                </div>
+                <div class="flex space-x-2 mt-4">
+                    <button onclick="requestMovementReport('excel')" class="btn bg-green-600 text-white w-1/2"><i class="fas fa-file-excel mr-2"></i>รายงานเคลื่อนไหว</button>
+                    <!-- (ใหม่) ปุ่มรายงานค่าใช้จ่าย -->
+                    <button onclick="requestExpenseReport('excel')" class="btn btn-warning w-1/2"><i class="fas fa-coins mr-2"></i>รายงานสรุปค่าใช้จ่าย</button>
+                </div>
+            </div>
+        </div>
+        <div id="report-status" class="mt-4 text-center"></div>
+    </div>
+  </div>
+
+  <!-- ADD PRODUCT MODAL -->
+  <div id="addModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3 class="text-lg font-bold mb-4">เพิ่มสินค้าใหม่</h3>
+        <form id="addProductForm">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="newNo" class="text-sm font-medium">NO</label>
+                <input type="number" id="newNo" class="form-input" required>
+              </div>
+              <div>
+                <label for="newMaterialNo" class="text-sm font-medium">MATERIAL NO</label>
+                <input type="text" id="newMaterialNo" class="form-input" required>
+              </div>
+            </div>
+            <div>
+                <label for="newDescription" class="text-sm font-medium">DESCRIPTION</label>
+                <input type="text" id="newDescription" class="form-input" required>
+            </div>
+            <!-- (ใหม่) เพิ่ม Unit Price, Max Stock -->
+            <div class="grid grid-cols-3 gap-4">
+              <div>
+                <label for="newUnit" class="text-sm font-medium">UNIT</label>
+                <input type="text" id="newUnit" class="form-input" required>
+              </div>
+              <div>
+                <label for="newUnitPrice" class="text-sm font-medium">ราคาต่อหน่วย (฿)</label>
+                <input type="number" id="newUnitPrice" class="form-input" min="0" step="0.01" placeholder="0.00">
+              </div>
+              <div>
+                <label for="newMaxStock" class="text-sm font-medium">Max Stock</label>
+                <input type="number" id="newMaxStock" class="form-input" min="0" placeholder="100">
+              </div>
+            </div>
+        </form>
+        <div class="flex justify-end space-x-2 mt-6">
+            <button onclick="closeAddModal()" class="btn bg-gray-500 text-white">ยกเลิก</button>
+            <button onclick="submitNewProduct()" class="btn btn-primary">บันทึกสินค้า</button>
+        </div>
+    </div>
+  </div>
+  
+  <!-- (ใหม่) Loading Overlay -->
+  <div id="loading-overlay" class="modal-overlay">
+    <div class="modal-box text-center">
+      <div class="loader"></div>
+      <p id="loading-message">กำลังโหลด...</p>
+    </div>
+  </div>
+
+  <script>
+    // ===== CONFIGURATION =====
+    // *** เปลี่ยน URL นี้เป็น GAS Deployment URL ของคุณ ***
+    const GAS_API_URL = 'https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEPLOYMENT_ID/exec';
+
+    // ===== STATE =====
+    let productData = [];
+    let inventoryData = [];
+    let dailyChart, topChart, inventoryChart;
+
+    // ===== GAS API HELPERS =====
+    async function gasGet(action, params = {}) {
+      const url = new URL(GAS_API_URL);
+      url.searchParams.set('action', action);
+      for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+      const res = await fetch(url.toString(), { redirect: 'follow' });
+      return res.json();
+    }
+
+    async function gasPost(action, data) {
+      const res = await fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action, data }),
+        redirect: 'follow'
+      });
+      return res.json();
+    }
+
+    // ===== INITIALIZATION & TAB LOGIC =====
+    window.onload = async () => {
+      showLoadingScreen('กำลังโหลดข้อมูลสินค้า...');
+      try {
+        const data = await gasGet('getInitialData');
+        setupInitialData(data);
+      } catch(e) {
+        handleInitialLoadError(e);
+      }
+    };
+
+    function setupInitialData(data) {
+      data = data || {};
+      setupProductData(data.products || []);
+      renderInventory(data.inventory || []);
+    }
+
+    function handleInitialLoadError(error) {
+      hideLoadingScreen();
+      const msg = (error && error.message) ? error.message : 'โปรดรีเฟรชหน้าเว็บ';
+      const container = document.getElementById('inventoryContainer');
+      if (container) {
+        container.innerHTML = `<div class="text-center text-red-500 p-4">
+          <i class="fas fa-exclamation-triangle mr-2"></i>โหลดข้อมูลไม่สำเร็จ: ${msg}
+          <br><button onclick="retryLoad()" class="btn btn-primary mt-3 text-sm">
+            <i class="fas fa-redo mr-1"></i>ลองใหม่
+          </button>
+        </div>`;
+      }
+    }
+
+    async function retryLoad() {
+      showLoadingScreen('กำลังโหลดข้อมูลใหม่...');
+      try {
+        const data = await gasGet('getInitialData');
+        setupInitialData(data);
+      } catch(e) {
+        handleInitialLoadError(e);
+      }
+    }
+
+    async function refreshAllData() {
+      try {
+        const data = await gasGet('getInitialData');
+        setupInitialData(data);
+      } catch(e) { showError(e); }
+    }
+    
+    function openTab(evt, tabName) {
+      document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+      document.querySelectorAll('.tab-button').forEach(tb => tb.classList.remove('active'));
+      document.getElementById(tabName).classList.add('active');
+      evt.currentTarget.classList.add('active');
+      if (tabName === 'dashboard') loadDashboardData();
+      if (tabName === 'inventory') loadInventoryData();
+      if (tabName === 'transactions') loadHistory();
+    }
+
+    function setupProductData(products) {
+      productData = products || [];
+      const datalist = document.getElementById('productList');
+      if (!datalist) { hideLoadingScreen(); return; }
+      datalist.innerHTML = '';
+      productData.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.description;
+        option.dataset.unitPrice = p.unitPrice;
+        datalist.appendChild(option);
+      });
+      hideLoadingScreen();
+    }
+    
+    // ===== LOADING HELPERS =====
+    function showLoadingScreen(message = 'กำลังประมวลผล...') {
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.querySelector('p').textContent = message;
+      }
+    }
+    function hideLoadingScreen() {
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+
+    // ===== TRANSACTION LOGIC =====
+    document.getElementById('receiveBtn').addEventListener('click', () => processForm('RECEIVE'));
+    document.getElementById('withdrawBtn').addEventListener('click', () => processForm('WITHDRAW'));
+    document.getElementById('historySearch').addEventListener('input', loadHistory);
+
+    function onProductSelect(description) {
+      const product = productData.find(p => p.description === description);
+      if (product) document.getElementById('unitPrice').value = product.unitPrice;
+    }
+
+    async function processForm(type) {
+      const form = document.getElementById('stockForm');
+      const descInput  = form.elements.description;
+      const qtyInput   = form.elements.quantity;
+      const deptInput  = form.elements.department;
+      const dateInput  = form.elements.transactionDate;
+      const priceInput = form.elements.unitPrice;
+
+      if (!descInput.value || !qtyInput.value || priceInput.value === '') {
+        showStatus('กรุณากรอกข้อมูล สินค้า, จำนวน และ ราคาต่อหน่วย ให้ครบถ้วน', 'error');
+        return;
+      }
+      const product = productData.find(p => p.description === descInput.value);
+      if (!product) {
+        showStatus('ไม่พบสินค้านี้ในระบบ กรุณาเลือกจากรายการ', 'error');
+        return;
+      }
+      const transactionData = {
+        type, no: product.no, materialNo: product.materialNo,
+        description: product.description, quantity: qtyInput.value,
+        unit: product.unit, department: deptInput.value,
+        transactionDate: dateInput.value, unitPrice: priceInput.value
+      };
+      showStatus(`กำลังทำรายการ "${type}"...`, 'info');
+      showLoadingScreen(`กำลัง${type === 'RECEIVE' ? 'รับเข้า' : 'เบิกจ่าย'}...`);
+      try {
+        const response = await gasPost('processTransaction', transactionData);
+        handleSuccess(response);
+      } catch(e) { showError(e); }
+    }
+    
+    async function loadHistory() {
+      const query = document.getElementById('historySearch').value;
+      document.getElementById('historyContainer').innerHTML = '<div class="loader"></div>';
+      try {
+        const entries = await gasGet('searchEntries', { q: query });
+        renderHistory(entries);
+      } catch(e) {
+        document.getElementById('historyContainer').innerHTML =
+          '<div class="text-center text-red-500 p-4"><i class="fas fa-exclamation-triangle mr-2"></i>โหลดประวัติไม่สำเร็จ <button onclick="loadHistory()" class="btn btn-primary ml-2 text-xs">ลองใหม่</button></div>';
+      }
+    }
+
+    function renderHistory(entries) {
+      // (แก้ไข) ป้องกัน null
+      entries = entries || [];
+      const container = document.getElementById('historyContainer');
+      if (!container) return;
+      if (!entries || entries.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-500 p-4">ไม่พบประวัติรายการ</div>';
+        return;
+      }
+      container.innerHTML = entries.map(entry => {
+        const typeText = entry.type === 'RECEIVE' ? 'รับเข้า' : (entry.type === 'WITHDRAW' ? 'เบิกจ่าย' : (entry.type === 'DELETE PRODUCT' ? 'ลบสินค้า' : 'ปรับสต็อก'));
+        const typeColor = entry.type === 'RECEIVE' ? 'text-green-600' : (entry.type === 'WITHDRAW' ? 'text-red-600' : (entry.type === 'DELETE PRODUCT' ? 'text-gray-500' : 'text-yellow-600'));
+        
+        // (ปรับปรุง) แสดงราคาและมูลค่า
+        return `
+        <div class="list-item-history text-sm">
+            <p class="font-bold ${typeColor}">
+                (${entry.no}) ${typeText}: ${entry.description}
+            </p>
+            <p class="text-gray-700">จำนวน: <span class="font-semibold">${entry.quantity} ${entry.unit}</span></p>
+            <p class="text-gray-700">ราคา: <span class="font-semibold">${formatCurrency(entry.unitPrice)}</span> | มูลค่ารวม: <span class="font-semibold">${formatCurrency(entry.totalValue)}</span></p>
+            <p class="text-gray-500 text-xs">เวลา: ${entry.timestamp} | โดย: ${entry.department}</p>
+        </div>
+        `;
+      }).join('');
+    }
+
+    // ===== INVENTORY MANAGEMENT LOGIC =====
+    document.getElementById('inventorySearch').addEventListener('input', filterInventory);
+
+    async function loadInventoryData() {
+      document.getElementById('inventoryContainer').innerHTML = '<div class="loader"></div>';
+      try {
+        const inventory = await gasGet('getInventory');
+        renderInventory(inventory);
+      } catch(e) { showError(e); }
+    }
+
+    function renderInventory(inventory) {
+        // *** (แก้ไข) เพิ่มการตรวจสอบ || [] เพื่อป้องกัน null ***
+        inventoryData = inventory || [];
+        filterInventory();
+    }
+
+    function filterInventory() {
+        const query = document.getElementById('inventorySearch').value.toLowerCase();
+        // (แก้ไข) ใช้ inventoryData ที่ปลอดภัยแล้ว
+        const filtered = inventoryData.filter(item => 
+            item.description.toLowerCase().includes(query) || 
+            String(item.materialNo).toLowerCase().includes(query) ||
+            String(item.no).toLowerCase().includes(query)
+        );
+        
+        const container = document.getElementById('inventoryContainer');
+        if (!container) return;
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="text-center text-gray-500 p-4">ไม่พบสินค้า</div>';
+            return;
+        }
+        container.innerHTML = filtered.map(item => {
+            const itemJson = JSON.stringify(item).replace(/'/g, "\\'");
+            // (ปรับปรุง) แสดงผลแบบใหม่
+            return `
+            <div class="list-item">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="font-bold text-base text-blue-800">(${item.no}) ${item.description}</p>
+                        <p class="text-gray-500 text-xs">รหัส: ${item.materialNo}</p>
+                    </div>
+                    <div class="flex space-x-2 flex-shrink-0">
+                        <button onclick='showEditForm(${itemJson})' class="btn btn-edit text-xs px-3 py-2"><i class="fas fa-pencil-alt mr-1"></i>แก้ไข</button>
+                        <button onclick='confirmDeleteProduct(${itemJson})' class="btn btn-danger text-xs px-3 py-2"><i class="fas fa-trash-alt mr-1"></i>ลบ</button>
+                    </div>
+                </div>
+                <div class="mt-3 grid grid-cols-3 gap-2 text-center border-t pt-3">
+                    <div>
+                        <p class="text-xs text-gray-500">ราคา/หน่วย</p>
+                        <p class="font-bold text-sm">${formatCurrency(item.unitPrice)}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">คงเหลือ / สูงสุด</p>
+                        <p class="font-bold text-lg">${item.stock} / ${item.maxStock}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">มูลค่ารวม</p>
+                        <p class="font-bold text-sm">${formatCurrency(item.totalValue)}</p>
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('');
+    }
+    
+    // ===== EDIT FORM LOGIC =====
+    function showEditForm(item) {
+        document.getElementById('editFormTitle').textContent = `แก้ไขสต็อก: ${item.description}`;
+        document.getElementById('editDescription').value = item.description;
+        document.getElementById('editMaterialNo').value = item.materialNo;
+        document.getElementById('editNewQuantity').value = item.stock;
+        document.getElementById('editMaxStock').value = item.maxStock; // (ใหม่)
+        
+        document.getElementById('inventoryEditSection').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function hideEditForm() {
+        document.getElementById('inventoryEditSection').classList.add('hidden');
+    }
+
+    async function submitInventoryUpdate() {
+      const item = inventoryData.find(p => String(p.materialNo) === document.getElementById('editMaterialNo').value);
+      if (!item) { showError({ message: 'ไม่พบข้อมูลสินค้าหลัก กรุณารีเฟรช' }); return; }
+      const data = {
+        no: item.no,
+        materialNo: document.getElementById('editMaterialNo').value,
+        description: document.getElementById('editDescription').value,
+        newQuantity: document.getElementById('editNewQuantity').value,
+        maxStock: document.getElementById('editMaxStock').value
+      };
+      showLoadingScreen('กำลังอัปเดตสต็อก...');
+      try {
+        const response = await gasPost('updateStockManually', data);
+        handleManualUpdateSuccess(response);
+      } catch(e) { showError(e); }
+    }
+
+    async function handleManualUpdateSuccess(response) {
+      hideLoadingScreen();
+      if (response.status === 'success') {
+        showStatus('อัปเดตสต็อกเรียบร้อย!', 'success');
+      } else { showError(response); return; }
+      hideEditForm();
+      await refreshAllData();
+    }
+
+    // ===== ADD/DELETE PRODUCT LOGIC =====
+    function openAddModal() {
+      document.getElementById('addProductForm').reset();
+      document.getElementById('addModal').style.display = 'flex';
+    }
+    function closeAddModal() {
+      document.getElementById('addModal').style.display = 'none';
+    }
+
+    async function submitNewProduct() {
+      const form = document.getElementById('addProductForm');
+      const data = {
+        no: form.elements.newNo.value,
+        materialNo: form.elements.newMaterialNo.value,
+        description: form.elements.newDescription.value,
+        unit: form.elements.newUnit.value,
+        unitPrice: form.elements.newUnitPrice.value || 0,
+        maxStock: form.elements.newMaxStock.value || 100
+      };
+      showLoadingScreen('กำลังเพิ่มสินค้าใหม่...');
+      try {
+        const response = await gasPost('addNewProduct', data);
+        hideLoadingScreen();
+        alert(response.message);
+        if (response.status === 'success') { closeAddModal(); await refreshAllData(); }
+      } catch(e) { showError(e); }
+    }
+
+    async function confirmDeleteProduct(item) {
+      if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสินค้า "${item.description}" ออกจากระบบอย่างถาวร?
+(หมายเหตุ: จะลบได้ต่อเมื่อสต็อก = 0 เท่านั้น)`)) {
+        showLoadingScreen('กำลังลบสินค้า...');
+        try {
+          const response = await gasPost('deleteProduct', item.materialNo);
+          hideLoadingScreen();
+          alert(response.message);
+          if (response.status === 'success') await refreshAllData();
+        } catch(e) { showError(e); }
+      }
+    }
+
+
+    // ===== DASHBOARD LOGIC =====
+    async function loadDashboardData() {
+      document.getElementById('totalValueCard').innerHTML = '<div class="loader-white mx-auto"></div>';
+      document.getElementById('restockTable').innerHTML = '<div class="loader"></div>';
+      document.getElementById('slowMovingTable').innerHTML = '<div class="loader"></div>';
+      document.getElementById('dailyWithdrawalsChart').style.display = 'none';
+      document.getElementById('topItemsChart').style.display = 'none';
+      document.getElementById('inventoryLevelsChart').style.display = 'none';
+      try {
+        const data = await gasGet('getDashboardData');
+        renderDashboard(data);
+      } catch(e) { showError(e); }
+    }
+
+    function renderDashboard(data) {
+        // (แก้ไข) ป้องกัน null
+        data = data || {};
+        renderTotalValue(data.totalInventoryValue || 0);
+        renderRestockTable(data.restockItems || []); // (ใหม่)
+        renderDailyChart(data.dailyWithdrawals || { labels: [], values: [] });
+        renderTopItemsChart(data.topWithdrawnItems || { labels: [], values: [] });
+        renderInventoryChart(data.inventoryLevels || { labels: [], values: [] });
+        renderSlowMovingTable(data.slowMovingStock || []);
+    }
+    
+    // (ใหม่)
+    function renderTotalValue(value) {
+        document.getElementById('totalValueCard').innerHTML = formatCurrency(value);
+    }
+    
+    // (ใหม่)
+    function renderRestockTable(tableData) {
+        const container = document.getElementById('restockTable');
+        if (!container) return;
+        if (!tableData || tableData.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500">ยอดเยี่ยม! ไม่มีสินค้าที่ต้องเติม</p>';
+            return;
+        }
+        container.innerHTML = `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-yellow-100 text-yellow-800">
+                    <tr>
+                        <th class="p-2">สินค้า</th>
+                        <th class="p-2 text-center">คงเหลือ / สูงสุด</th>
+                        <th class="p-2 text-center">สต็อก (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableData.map(item => `
+                        <tr class="border-b border-yellow-200">
+                            <td class="p-2">${item.description}</td>
+                            <td class="p-2 text-center">${item.stock} / ${item.maxStock}</td>
+                            <td class="p-2 text-center font-bold">${item.percent.toFixed(0)}%</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    function renderDailyChart(chartData) {
+        const canvas = document.getElementById('dailyWithdrawalsChart');
+        if (!canvas) return;
+        if (!chartData || !chartData.labels || chartData.labels.length === 0) {
+            canvas.style.display = 'none';
+            return;
+        }
+        canvas.style.display = 'block';
+        const ctx = canvas.getContext('2d');
+        if(dailyChart) dailyChart.destroy();
+        dailyChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: chartData.labels, datasets: [{ label: 'จำนวนที่เบิก', data: chartData.values, backgroundColor: 'rgba(59, 130, 246, 0.7)' }] },
+            options: { responsive: true }
+        });
+    }
+
+    function renderTopItemsChart(chartData) {
+        const canvas = document.getElementById('topItemsChart');
+        if (!canvas) return;
+         if (!chartData || !chartData.labels || chartData.labels.length === 0) {
+            canvas.style.display = 'none';
+            return;
+        }
+        canvas.style.display = 'block';
+        const ctx = canvas.getContext('2d');
+        if(topChart) topChart.destroy();
+        topChart = new Chart(ctx, {
+            type: 'pie',
+            data: { labels: chartData.labels, datasets: [{ data: chartData.values, backgroundColor: ['#3B82F6', '#10B981', '#F97316', '#EF4444', '#8B5CF6'] }] },
+            options: { responsive: true }
+        });
+    }
+
+    function renderInventoryChart(chartData) {
+        const canvas = document.getElementById('inventoryLevelsChart');
+        if (!canvas) return;
+         if (!chartData || !chartData.labels || chartData.labels.length === 0) {
+            canvas.style.display = 'none';
+            return;
+        }
+        canvas.style.display = 'block';
+        const ctx = canvas.getContext('2d');
+        if(inventoryChart) inventoryChart.destroy();
+        inventoryChart = new Chart(ctx, {
+            type: 'bar',
+            data: { 
+                labels: chartData.labels, 
+                datasets: [{ 
+                    label: 'จำนวนคงคลัง', 
+                    data: chartData.values, 
+                    backgroundColor: 'rgba(22, 163, 74, 0.7)' 
+                }] 
+            },
+            options: { 
+                indexAxis: 'y',
+                responsive: true 
+            }
+        });
+    }
+    
+    function renderSlowMovingTable(tableData) {
+        const container = document.getElementById('slowMovingTable');
+        if (!container) return;
+        if (!tableData || tableData.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500">ไม่พบสินค้าคงคลังนาน</p>';
+            return;
+        }
+        container.innerHTML = `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-200">
+                    <tr>
+                        <th class="p-2">สินค้า</th>
+                        <th class="p-2 text-center">สต็อกคงเหลือ</th>
+                        <th class="p-2 text-center">ไม่ได้เคลื่อนไหว (วัน)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableData.map(item => `
+                        <tr class="border-b">
+                            <td class="p-2">${item.description}</td>
+                            <td class="p-2 text-center">${item.stock}</td>
+                            <td class="p-2 text-center">${item.daysSinceUpdate}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    // ===== REPORTING LOGIC =====
+    async function requestReport(reportType, dataType) {
+      const statusDiv = document.getElementById('report-status');
+      if (!statusDiv) return;
+      statusDiv.innerHTML = '<div class="loader mx-auto"></div><p>กำลังสร้างรายงาน กรุณารอสักครู่...</p>';
+      const options = {
+        reportType, dataType,
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value,
+        filterType: document.getElementById('filterType').value,
+        productFilter: document.getElementById('productFilter').value
+      };
+      try {
+        const response = await gasPost('createReport', options);
+        downloadFile(response);
+      } catch(e) {
+        statusDiv.innerHTML = `<p class="text-red-600">เกิดข้อผิดพลาด: ${e.message || 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้'}</p>`;
+      }
+    }
+    function requestMovementReport(reportType) { requestReport(reportType, 'movements'); }
+    function requestExpenseReport(reportType)  { requestReport(reportType, 'expense_summary'); }
+
+    function downloadFile(response) {
+        const statusDiv = document.getElementById('report-status');
+        if (!statusDiv) return;
+        if (response.status === 'success') {
+            const link = document.createElement('a');
+            link.href = `data:${response.mimeType};base64,${response.blob}`;
+            link.download = response.fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            statusDiv.innerHTML = '<p class="text-green-600">สร้างรายงานสำเร็จ!</p>';
+        } else {
+            statusDiv.innerHTML = `<p class="text-red-600">เกิดข้อผิดพลาด: ${response.message}</p>`;
+        }
+    }
+    
+    // ===== UTILITY FUNCTIONS =====
+    function handleSuccess(response) {
+      hideLoadingScreen();
+      if (response.status === 'success') {
+        showStatus('บันทึกรายการเรียบร้อยครับ', 'success');
+        document.getElementById('stockForm').reset();
+        loadHistory(); // รีเฟรชประวัติ
+      } else {
+        // กรณี .gs ส่ง error กลับมา (เช่น สต็อกไม่พอ)
+        showError(response);
+      }
+    }
+
+    function showError(error) {
+        hideLoadingScreen();
+        // (แก้ไข) แสดง error.message หรือ error.toString()
+        const errorMessage = error.message || (typeof error === 'string' ? error : 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้');
+        alert(`เกิดข้อผิดพลาด: ${errorMessage}`);
+    }
+
+    function showStatus(message, type) {
+        const statusDiv = document.getElementById('form-status');
+        if (!statusDiv) return;
+        const color = type === 'success' ? 'text-green-600' : (type === 'error' ? 'text-red-600' : 'text-blue-600');
+        statusDiv.className = `mt-4 text-sm h-5 ${color} font-medium`;
+        statusDiv.textContent = message;
+        setTimeout(() => statusDiv.textContent = '', 4000);
+    }
+    
+    // (ใหม่) Helper จัดรูปแบบสกุลเงิน
+    function formatCurrency(num) {
+        if (typeof num !== 'number') {
+            num = parseFloat(num) || 0;
+        }
+        return new Intl.NumberFormat('th-TH', { 
+            style: 'currency', 
+            currency: 'THB',
+            minimumFractionDigits: 2 
+        }).format(num);
+    }
+  </script>
+
+</body>
+</html>
+
