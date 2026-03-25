@@ -9,6 +9,8 @@
 // --- CONFIGURATION ---
 const INVENTORY_SHEET_NAME = 'Inventory';
 const MOVEMENTS_SHEET_NAME = 'Movements';
+const CACHE_KEY_INVENTORY  = 'dxa3_inv_v1';
+const CACHE_DURATION       = 60; // วินาที
 
 // --- SETUP & WEB APP ---
 function onOpen() {
