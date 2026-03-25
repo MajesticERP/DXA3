@@ -5,6 +5,13 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <title>Stock Management System</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2563EB">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="DX-A3 Stock">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="thai-cargo-logo.png">
   <style>
     /* เพิ่ม Google Font (Sarabun) */
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
@@ -82,6 +89,42 @@
       transform: translateX(3px);
       background-color: #F3F4F6;
     }
+
+    /* ===== TOAST NOTIFICATIONS ===== */
+    #toast-container {
+      position: fixed; top: 1.2rem; right: 1.2rem; z-index: 9999;
+      display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;
+    }
+    .toast {
+      padding: 12px 18px; border-radius: 14px; font-weight: 600; font-size: 14px;
+      color: white; display: flex; align-items: center; gap: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18); min-width: 260px; max-width: 380px;
+      animation: toastIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    }
+    .toast.hide { animation: toastOut 0.3s ease-in forwards; }
+    .toast-success { background: linear-gradient(135deg,#10B981,#059669); }
+    .toast-error   { background: linear-gradient(135deg,#EF4444,#DC2626); }
+    .toast-info    { background: linear-gradient(135deg,#3B82F6,#2563EB); }
+    .toast-warning { background: linear-gradient(135deg,#F59E0B,#D97706); }
+    @keyframes toastIn {
+      from { opacity:0; transform: translateX(110%) scale(0.8); }
+      to   { opacity:1; transform: translateX(0)   scale(1);   }
+    }
+    @keyframes toastOut {
+      from { opacity:1; transform: translateX(0)   scale(1);   }
+      to   { opacity:0; transform: translateX(110%) scale(0.8); }
+    }
+
+    /* ===== RIPPLE EFFECT ===== */
+    .btn { position: relative; overflow: hidden; }
+    .ripple {
+      position: absolute; border-radius: 50%;
+      background: rgba(255,255,255,0.45);
+      transform: scale(0);
+      animation: rippleAnim 0.6s linear;
+      pointer-events: none;
+    }
+    @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -921,12 +964,12 @@
 
     function showError(error) {
         hideLoadingScreen();
-        // (แก้ไข) แสดง error.message หรือ error.toString()
         const errorMessage = error.message || (typeof error === 'string' ? error : 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้');
-        alert(`เกิดข้อผิดพลาด: ${errorMessage}`);
+        showToast('เกิดข้อผิดพลาด: ' + errorMessage, 'error');
     }
 
     function showStatus(message, type) {
+        showToast(message, type || 'info');
         const statusDiv = document.getElementById('form-status');
         if (!statusDiv) return;
         const color = type === 'success' ? 'text-green-600' : (type === 'error' ? 'text-red-600' : 'text-blue-600');
@@ -945,6 +988,46 @@
             currency: 'THB',
             minimumFractionDigits: 2 
         }).format(num);
+    }
+
+    // ===== TOAST NOTIFICATIONS =====
+    function showToast(message, type = 'info') {
+      const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+      let container = document.getElementById('toast-container');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+      }
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `<span style="font-size:1.2em">${icons[type]||'ℹ️'}</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 350);
+      }, 3500);
+    }
+
+    // ===== RIPPLE EFFECT =====
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.btn');
+      if (!btn) return;
+      const ripple = document.createElement('span');
+      const rect = btn.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      ripple.className = 'ripple';
+      ripple.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+      btn.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+    });
+
+    // ===== PWA SERVICE WORKER =====
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .catch(err => console.log('SW:', err));
+      });
     }
   </script>
 

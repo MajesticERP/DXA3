@@ -1,0 +1,19 @@
+{
+  "name": "ระบบจัดการสต็อก DX-A3",
+  "short_name": "DX-A3 Stock",
+  "description": "Thai Cargo • ระบบจัดการสต็อก DX-A3",
+  "start_url": "/DXA3/",
+  "scope": "/DXA3/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563EB",
+  "icons": [
+    {
+      "src": "thai-cargo-logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
