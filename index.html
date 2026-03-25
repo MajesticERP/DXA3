@@ -589,9 +589,9 @@
         const query = document.getElementById('inventorySearch').value.toLowerCase();
         // (แก้ไข) ใช้ inventoryData ที่ปลอดภัยแล้ว
         const filtered = inventoryData.filter(item => 
-            item.description.toLowerCase().includes(query) || 
-            String(item.materialNo).toLowerCase().includes(query) ||
-            String(item.no).toLowerCase().includes(query)
+            String(item.description || '').toLowerCase().includes(query) || 
+            String(item.materialNo || '').toLowerCase().includes(query) ||
+            String(item.no || '').toLowerCase().includes(query)
         );
         
         const container = document.getElementById('inventoryContainer');
