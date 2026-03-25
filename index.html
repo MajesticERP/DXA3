@@ -351,8 +351,25 @@
     let inventoryData = [];
     let dailyChart, topChart, inventoryChart;
 
-    // ===== GAS API HELPERS =====
+    // ===== GAS API HELPERS (Hybrid: GAS web app ↔ GitHub Pages) =====
+    // ตรวจสอบ environment อัตโนมัติ
+    const IS_GAS = !!(typeof google !== 'undefined' && google.script && google.script.run);
+
     async function gasGet(action, params = {}) {
+      if (IS_GAS) {
+        // รันใน GAS web app → ใช้ google.script.run (ไม่มี CORS)
+        return new Promise((resolve, reject) => {
+          const r = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+          switch(action) {
+            case 'getInitialData':   r.getInitialData(); break;
+            case 'getInventory':     r.getInventory(); break;
+            case 'getDashboardData': r.getDashboardData(); break;
+            case 'searchEntries':    r.searchEntries(params.q || ''); break;
+            default: reject(new Error('Unknown action: ' + action));
+          }
+        });
+      }
+      // รันใน GitHub Pages → ใช้ fetch()
       const url = new URL(GAS_API_URL);
       url.searchParams.set('action', action);
       for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
@@ -361,6 +378,21 @@
     }
 
     async function gasPost(action, data) {
+      if (IS_GAS) {
+        // รันใน GAS web app → ใช้ google.script.run (ไม่มี CORS)
+        return new Promise((resolve, reject) => {
+          const r = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+          switch(action) {
+            case 'processTransaction':  r.processTransaction(data); break;
+            case 'updateStockManually': r.updateStockManually(data); break;
+            case 'addNewProduct':       r.addNewProduct(data); break;
+            case 'deleteProduct':       r.deleteProduct(data); break;
+            case 'createReport':        r.createReport(data); break;
+            default: reject(new Error('Unknown action: ' + action));
+          }
+        });
+      }
+      // รันใน GitHub Pages → ใช้ fetch()
       const res = await fetch(GAS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
